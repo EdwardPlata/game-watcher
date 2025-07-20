@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Sports Calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .sport-card {
+            margin-bottom: 15px;
+        }
+        
+        .sport-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        
+        .sport-badge.sport-f1 { background: #dc3545; }
+        .sport-badge.sport-nfl { background: #28a745; }
+        .sport-badge.sport-nba { background: #fd7e14; }
+        .sport-badge.sport-futbol { background: #6f42c1; }
+        .sport-badge.sport-boxing { background: #e83e8c; }
+        .sport-badge.sport-mma { background: #20c997; }
+        
+        .loading {
+            display: none;
+        }
+        
+        .loading.show {
+            display: inline-block;
+        }
+        
+        .result-message {
+            margin-top: 10px;
+        }
+        
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-calendar-alt"></i> Sports Calendar
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/">Calendar</a>
+                <a class="nav-link active" href="/admin">Admin</a>
+                <a class="nav-link" href="/docs" target="_blank">API Docs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-cogs"></i> Admin Dashboard</h2>
+                <p class="text-muted mb-0">Manage data collection and view statistics</p>
+            </div>
+            <div>
+                <button class="btn btn-success" onclick="collectAllData()">
+                    <i class="fas fa-sync-alt"></i> Collect All Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Events</h6>
+                                <h3 class="mb-0">{{ total_events }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-check fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Sports</h6>
+                                <h3 class="mb-0">{{ sport_stats|length }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-football-ball fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">API Status</h6>
+                                <h3 class="mb-0">Online</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-server fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Last Update</h6>
+                                <h6 class="mb-0">
+                                    {% set latest_update = sport_stats | selectattr('last_updated') | map(attribute='last_updated') | max %}
+                                    {% if latest_update %}
+                                        {{ latest_update[:19] }}
+                                    {% else %}
+                                        Never
+                                    {% endif %}
+                                </h6>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sports Management -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list"></i> Sports Data Collection</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for sport in sport_stats %}
+                        <div class="card sport-card">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <span class="badge sport-badge sport-{{ sport.name }} text-white">
+                                            {{ sport.display_name }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>{{ sport.event_count }}</strong> events
+                                    </div>
+                                    <div class="col-md-3">
+                                        {% if sport.last_updated %}
+                                        <small class="text-muted">
+                                            Updated: {{ sport.last_updated[:19] }}
+                                        </small>
+                                        {% else %}
+                                        <small class="text-muted">Never updated</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <button class="btn btn-outline-primary btn-sm" 
+                                                onclick="collectSportData('{{ sport.name }}', this)">
+                                            <i class="fas fa-download"></i> Collect
+                                        </button>
+                                        <div class="loading">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                        </div>
+                                        <div class="result-message"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-terminal"></i> Collection Log</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="collectionLog">
+                            Ready to collect data...<br>
+                            Click "Collect" buttons to start data collection.<br>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearLog()">
+                                <i class="fas fa-trash"></i> Clear Log
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="fas fa-link"></i> Quick Links</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="/docs" target="_blank" class="btn btn-outline-info">
+                                <i class="fas fa-book"></i> API Documentation
+                            </a>
+                            <a href="/api/v1/health" target="_blank" class="btn btn-outline-success">
+                                <i class="fas fa-heartbeat"></i> Health Check
+                            </a>
+                            <a href="/api/v1/events" target="_blank" class="btn btn-outline-primary">
+                                <i class="fas fa-database"></i> View All Events (JSON)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function addLog(message) {
+            const log = document.getElementById('collectionLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('collectionLog').innerHTML = 'Log cleared...<br>';
+        }
+
+        async function collectSportData(sport, button) {
+            const loadingElement = button.parentElement.querySelector('.loading');
+            const resultElement = button.parentElement.querySelector('.result-message');
+            
+            // Show loading
+            button.style.display = 'none';
+            loadingElement.classList.add('show');
+            resultElement.innerHTML = '';
+            
+            addLog(`Starting data collection for ${sport.toUpperCase()}...`);
+            
+            try {
+                const response = await fetch(`/api/v1/collect/${sport}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultElement.innerHTML = `<small class="text-success">✓ ${result.events_inserted} events added</small>`;
+                    addLog(`${sport.toUpperCase()}: Successfully collected ${result.events_collected} events, inserted ${result.events_inserted} new events (${result.duration_seconds.toFixed(2)}s)`);
+                } else {
+                    resultElement.innerHTML = `<small class="text-danger">✗ Failed</small>`;
+                    addLog(`${sport.toUpperCase()}: Collection failed - ${result.error_message || 'Unknown error'}`);
+                }
+                
+            } catch (error) {
+                resultElement.innerHTML = `<small class="text-danger">✗ Error</small>`;
+                addLog(`${sport.toUpperCase()}: Collection error - ${error.message}`);
+            }
+            
+            // Hide loading
+            loadingElement.classList.remove('show');
+            button.style.display = 'inline-block';
+            
+            // Auto-refresh page after 2 seconds to update statistics
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+
+        async function collectAllData() {
+            addLog('Starting collection for all sports...');
+            
+            const sports = {{ sports_list | tojson }};
+            
+            for (const sport of sports) {
+                const button = document.querySelector(`button[onclick*="${sport}"]`);
+                if (button) {
+                    await collectSportData(sport, button);
+                    // Add delay between collections
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            addLog('All sports collection completed!');
+        }
+    </script>
+</body>
+</html>

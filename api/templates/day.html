@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ formatted_date }} - Sports Calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .day-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .event-card {
+            margin-bottom: 15px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .event-card.sport-f1 { border-left-color: #dc3545; }
+        .event-card.sport-nfl { border-left-color: #28a745; }
+        .event-card.sport-nba { border-left-color: #fd7e14; }
+        .event-card.sport-futbol { border-left-color: #6f42c1; }
+        .event-card.sport-boxing { border-left-color: #e83e8c; }
+        .event-card.sport-mma { border-left-color: #20c997; }
+        
+        .sport-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        
+        .sport-badge.sport-f1 { background: #dc3545; }
+        .sport-badge.sport-nfl { background: #28a745; }
+        .sport-badge.sport-nba { background: #fd7e14; }
+        .sport-badge.sport-futbol { background: #6f42c1; }
+        .sport-badge.sport-boxing { background: #e83e8c; }
+        .sport-badge.sport-mma { background: #20c997; }
+        
+        .participants-list {
+            margin: 10px 0;
+        }
+        
+        .participant {
+            background: #f8f9fa;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            display: inline-block;
+            font-size: 14px;
+        }
+        
+        .event-time {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .no-events {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-calendar-alt"></i> Sports Calendar
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/">Calendar</a>
+                <a class="nav-link" href="/admin">Admin</a>
+                <a class="nav-link" href="/docs" target="_blank">API Docs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="day-container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-calendar-day"></i> {{ formatted_date }}</h2>
+                <p class="text-muted mb-0">
+                    {% if events %}
+                        {{ events|length }} event{% if events|length != 1 %}s{% endif %} scheduled
+                    {% else %}
+                        No events scheduled
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <a href="/" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Calendar
+                </a>
+            </div>
+        </div>
+
+        <!-- Sport Filter -->
+        {% if sports_list %}
+        <div class="mb-4">
+            <div class="btn-group" role="group">
+                <a href="/day/{{ date_str }}" 
+                   class="btn {% if not current_sport %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                    All Sports
+                </a>
+                {% for sport in sports_list %}
+                <a href="/day/{{ date_str }}?sport={{ sport }}" 
+                   class="btn {% if current_sport == sport %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                    {{ sport.upper() }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Events -->
+        {% if events %}
+            {% for event in events %}
+            <div class="card event-card sport-{{ event.sport }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ event.event }}</h5>
+                        <span class="badge sport-badge sport-{{ event.sport }} text-white">
+                            {{ event.sport.upper() }}
+                        </span>
+                    </div>
+                    
+                    {% if event.date %}
+                    <div class="event-time mb-2">
+                        <i class="fas fa-clock"></i> 
+                        {% set event_datetime = event.date.replace('Z', '+00:00') %}
+                        {% set parsed_date = event_datetime | truncate(19, true, '') %}
+                        {{ parsed_date }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if event.location %}
+                    <div class="mb-2">
+                        <i class="fas fa-map-marker-alt"></i> {{ event.location }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if event.participants %}
+                    <div class="participants-list">
+                        <small class="text-muted">Participants:</small><br>
+                        {% for participant in event.participants %}
+                        <span class="participant">{{ participant }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if event.leagues %}
+                    <div class="leagues-list mt-2">
+                        <small class="text-muted">Leagues:</small><br>
+                        {% for league in event.leagues %}
+                        <span class="badge bg-secondary me-1">{{ league }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-database"></i> 
+                            Added: {{ event.scraped_at[:19] if event.scraped_at else 'Unknown' }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-events">
+                <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                <h4>No Events Scheduled</h4>
+                <p>There are no {% if current_sport %}{{ current_sport.upper() }}{% else %}sports{% endif %} events scheduled for this date.</p>
+                {% if not current_sport %}
+                <p class="text-muted">Try collecting fresh data from the admin panel or check other dates.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

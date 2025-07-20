@@ -1,53 +1,83 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
 
-# Coverage directory used by tools like istanbul
-coverage/
-.nyc_output
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+sports_calendar.db
 
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
+# Log files
+*.log
+sports_calendar.log
 
-# Bower dependency directory (https://bower.io/)
-bower_components
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# node-waf configuration
-.lock-wscript
+# Environment variables
+.env
+config.local.env
 
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
 
-# Dependency directories
-node_modules/
-jspm_packages/
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# Optional npm cache directory
-.npm
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Optional eslint cache
-.eslintcache
+# Google Calendar credentials
+credentials.json
+token.json
 
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
+# Temporary files
+*.tmp
+*.temp
 .env
 .env.local
 .env.development.local
