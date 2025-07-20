@@ -1,0 +1,51 @@
+{
+  "servers": {
+    // GitHub MCP Server - GitHub's official MCP server for repository management, 
+    // file operations, issues, pull requests, and GitHub API integration
+    // https://github.com/github/github-mcp-server
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    
+    // Filesystem MCP Server - Secure file operations with configurable access controls
+    // Enables reading, writing, creating, and managing files and directories
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspaces"]
+    },
+    
+    // Git MCP Server - Tools to read, search, and manipulate Git repositories
+    // Provides git operations like status, log, diff, commit, and branch management
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/git
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/workspaces/game-watcher"]
+    },
+    
+    // Fetch MCP Server - Web content fetching and conversion for efficient LLM usage
+    // Fetches web pages, converts them to clean text/markdown for AI processing
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/fetch
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },  
+    
+    // Memory MCP Server - Knowledge graph-based persistent memory system
+    // Stores and retrieves information across conversations for continuity
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/memory
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    
+    // Time MCP Server - Time and timezone conversion capabilities
+    // Provides current time, timezone conversions, and time-related operations
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/time
+    "time": {
+      "command": "uvx",
+      "args": ["mcp-server-time"]
+    }
+  }
+}
