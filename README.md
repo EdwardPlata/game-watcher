@@ -1,151 +1,229 @@
-# Game Watcher
+# Game Watcher - Daily Sports Calendar App
 
-A comprehensive game monitoring and data analysis application with integrated MCP (Model Context Protocol) servers for enhanced development capabilities.
+A comprehensive sports schedule tracking application with API integration, database storage, and calendar synchronization capabilities. Enhanced with MCP (Model Context Protocol) server integration for advanced development workflows.
 
 ## Overview
 
-Game Watcher is designed to monitor, analyze, and provide insights into gaming data and metrics. The project leverages multiple MCP servers to provide powerful tools for data engineering, software engineering, and personal productivity.
+Game Watcher is a Python-based application that fetches and stores daily schedules for multiple sports including Football/Soccer, NFL, NBA, F1, Boxing, and MMA/UFC. The application features automated data collection, local storage, and optional Google Calendar integration.
+
+## Sports Supported
+
+- 🏎️ **F1** - Formula 1 racing (via Ergast API) ✅ *Implemented*
+- ⚽ **Fútbol/Soccer** - International and domestic leagues ⏳ *Planned*
+- 🏈 **NFL** - National Football League ⏳ *Planned*
+- 🏀 **NBA** - National Basketball Association ⏳ *Planned*
+- 🥊 **Boxing** - Professional boxing events ⏳ *Planned*
+- 🥋 **MMA/UFC** - Mixed martial arts events ⏳ *Planned*
 
 ## Features
 
-- 🎮 Game monitoring and analytics
-- 📊 Data engineering capabilities
-- 🔧 Software development tools
-- 🤖 AI-powered insights via MCP integration
-- 📁 Advanced file and repository management
-- 🌐 Web content fetching and processing
-- 🧠 Persistent memory and knowledge graphs
-- ⏰ Time and timezone management
+### Core Functionality
+- **Multi-sport data fetching** from various APIs and web sources
+- **SQLite database storage** with automatic duplicate prevention
+- **Scheduled daily updates** at 2:00 AM local time
+- **CLI interface** for manual operations and queries
+- **Modular architecture** for easy sport-specific implementations
 
-## MCP Server Integration
+### MCP Integration
+- 🤖 **AI-powered development** with GitHub Copilot integration
+- 📁 **Advanced file operations** via filesystem server
+- 🔧 **Git repository management** for version control
+- 🌐 **Web content fetching** for data sources
+- 🧠 **Persistent memory** for development context
+- ⏰ **Time zone management** for global sports scheduling
 
-This project includes a comprehensive MCP server configuration that provides the following capabilities:
+### Optional Features
+- **Google Calendar sync** for personal scheduling integration
+- **Event notifications** and reminders
+- **Data export** capabilities
 
-### GitHub Server
-- Repository management and operations
-- Issue and pull request handling
-- GitHub API integration
-- Code review and collaboration tools
-
-### Filesystem Server
-- Secure file operations with access controls
-- File reading, writing, and management
-- Directory operations and navigation
-
-### Git Server
-- Local git repository operations
-- Status, log, diff, and commit operations
-- Branch management and version control
-
-### Fetch Server
-- Web content fetching and conversion
-- Clean text/markdown extraction for AI processing
-- API endpoint integration
-
-### Memory Server
-- Knowledge graph-based persistent memory
-- Cross-conversation information storage
-- Entity and relationship management
-
-### Time Server
-- Current time retrieval in various timezones
-- Time conversion between timezones
-- Time-related calculations and operations
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v18 or higher)
-- Python 3.8+ (for some MCP servers)
-- Git
-- VS Code (recommended for MCP integration)
+## Quick Start
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/EdwardPlata/game-watcher.git
 cd game-watcher
 ```
 
-2. Install dependencies:
+2. **Install Python dependencies:**
 ```bash
-npm install
+pip install -r requirements.txt
 ```
 
-3. Set up MCP servers (if using VS Code):
-   - The `.vscode/mcp.json` file is already configured
-   - Install required dependencies:
-   ```bash
-   # Install npm-based servers
-   npm install -g @modelcontextprotocol/server-filesystem
-   npm install -g @modelcontextprotocol/server-memory
-   
-   # Install Python-based servers (using uvx)
-   pip install uv
-   uvx mcp-server-git
-   uvx mcp-server-fetch
-   uvx mcp-server-time
-   ```
+3. **Test the F1 implementation:**
+```bash
+python test_app.py
+```
 
-### Configuration
+### Basic Usage
 
-The MCP servers are pre-configured in `.vscode/mcp.json`. You may need to adjust paths and settings based on your environment:
+```bash
+# Fetch all sports data and store in database
+python app.py fetch
 
-- **Filesystem server**: Currently set to `/workspaces` - update to your preferred root directory
-- **Git server**: Currently set to `/workspaces/game-watcher` - update to your project path
+# Show upcoming F1 events for the next 7 days
+python app.py show f1
 
-## Usage
+# Show all sports events for the next 30 days
+python app.py show --days 30
 
-### Development Environment
+# Start the daily scheduler (runs continuously)
+python app.py schedule
 
-If using VS Code with MCP support:
+# Sync new events to Google Calendar (when configured)
+python app.py sync
+```
+
+## Configuration
+
+### Environment Variables
+
+Copy `config.env` to `.env` and configure your API keys:
+
+```bash
+cp config.env .env
+# Edit .env with your actual API keys
+```
+
+### Required API Keys (Optional)
+- **API-Football**: For soccer/football data
+- **SportsDataIO**: For NFL, NBA data
+- **RapidAPI**: For various sports APIs
+- **Google Calendar**: For calendar synchronization
+
+### MCP Servers
+
+The project includes pre-configured MCP servers in `.vscode/mcp.json`:
+- **GitHub** - Repository and issue management
+- **Filesystem** - File operations
+- **Git** - Version control operations
+- **Fetch** - Web content retrieval
+- **Memory** - Persistent knowledge storage
+- **Time** - Timezone conversions
+
+## Architecture
+
+### Data Flow
+```
+APIs/Web Sources → SportsFetcher → DatabaseManager → SQLite DB
+                     ↓
+               CalendarSync → Google Calendar (optional)
+```
+
+### Key Components
+
+#### `SportsFetcher` Class
+- **Modular design** with sport-specific `fetch_*()` and `parse_*()` methods
+- **Error handling** and retry logic
+- **Rate limiting** for API compliance
+- **Standardized event schema**
+
+#### `DatabaseManager` Class  
+- **SQLite operations** with automatic schema creation
+- **Duplicate prevention** using composite keys
+- **Efficient querying** with indexed searches
+- **Data retention** management
+
+#### Event Schema
+```python
+{
+    "sport": "f1",
+    "date": "2025-07-20T18:00:00Z",
+    "event": "F1 Monaco Grand Prix",
+    "participants": ["F1 Drivers"],
+    "location": "Circuit de Monaco, Monaco"
+}
+```
+
+## Implementation Status
+
+### ✅ Completed
+- **F1 Integration** - Full Ergast API implementation
+- **Database layer** - SQLite with proper indexing
+- **CLI interface** - All basic commands functional
+- **Scheduler** - APScheduler integration
+- **Testing framework** - Comprehensive test suite
+
+### 🚧 In Progress
+- **Error handling** improvements
+- **Logging** enhancements
+- **Configuration** management
+
+### ⏳ Planned
+- **NFL API** integration (SportsDataIO)
+- **NBA API** integration (NBA/SportsDataIO)
+- **Soccer API** integration (API-Football)
+- **Boxing** web scraping (ESPN/BoxingScene)
+- **MMA/UFC** API integration (RapidAPI)
+- **Google Calendar** OAuth2 implementation
+- **Web dashboard** interface
+- **Mobile notifications**
+
+## Development with MCP
+
+This project is enhanced with MCP servers for development productivity:
+
+### Using VS Code
 1. Open the project in VS Code
-2. The MCP servers will automatically load based on the configuration
-3. Use AI assistance with enhanced capabilities from all integrated servers
+2. MCP servers auto-load from `.vscode/mcp.json`
+3. AI assistance has enhanced capabilities for:
+   - File operations
+   - Git management
+   - API documentation lookup
+   - Code generation and debugging
 
-### Available Tools
-
-Through the MCP integration, you have access to:
-- **100+ GitHub operations** (issues, PRs, repos, workflows, etc.)
-- **13 filesystem operations** (read, write, search, manage files)
-- **12 git operations** (status, commit, branch, merge, etc.)
-- **8 memory operations** (knowledge graphs, entities, relations)
-- **Web fetching** capabilities for external data
-- **Time management** tools for scheduling and logging
-
-## Project Structure
-
-```
-game-watcher/
-├── .vscode/
-│   └── mcp.json          # MCP server configuration
-├── src/                  # Source code (to be developed)
-├── data/                 # Data storage and processing
-├── docs/                 # Documentation
-├── tests/                # Test files
-├── package.json          # Node.js dependencies
-└── README.md            # This file
-```
-
-## Development Roadmap
-
-- [ ] Core game monitoring functionality
-- [ ] Data pipeline for game metrics
-- [ ] Analytics dashboard
-- [ ] Real-time monitoring capabilities
-- [ ] AI-powered insights and recommendations
-- [ ] API integrations for popular gaming platforms
-- [ ] Custom game data connectors
+### Available MCP Tools
+- **100+ GitHub operations** - Issues, PRs, workflows
+- **13 filesystem tools** - Read, write, search files
+- **12 git operations** - Status, commit, branch management
+- **Web fetching** - API documentation and examples
+- **Memory management** - Context preservation across sessions
 
 ## Contributing
 
+### Adding New Sports
+
+1. **Implement fetcher method:**
+```python
+def fetch_newsport(self) -> List[Dict]:
+    # API calls or web scraping
+    return self.parse_newsport(raw_data)
+```
+
+2. **Implement parser method:**
+```python
+def parse_newsport(self, raw_data) -> List[Dict]:
+    # Convert to standardized event schema
+    return events
+```
+
+3. **Add to supported sports list:**
+```python
+self.supported_sports = ['f1', 'futbol', 'nfl', 'nba', 'boxing', 'mma', 'newsport']
+```
+
+### Development Workflow
+
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/new-sport`)
+3. Implement and test new functionality
+4. Run test suite (`python test_app.py`)
+5. Submit pull request
+
+## Testing
+
+```bash
+# Run full test suite
+python test_app.py
+
+# Test specific components
+python -c "from app import SportsFetcher; print(SportsFetcher().fetch_f1())"
+
+# Database tests
+python -c "from app import DatabaseManager; db = DatabaseManager('test.db')"
+```
 
 ## License
 
@@ -153,13 +231,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- [Model Context Protocol](https://modelcontextprotocol.io/) for the MCP framework
-- [GitHub MCP Server](https://github.com/github/github-mcp-server) for GitHub integration
-- [MCP Servers Repository](https://github.com/modelcontextprotocol/servers) for additional server implementations
+- **[Ergast API](http://ergast.com/mrd/)** - F1 data source
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** - Development enhancement
+- **APScheduler** - Task scheduling
+- **Requests** - HTTP client library
 
-## Support
+## API Data Sources
 
-For questions and support:
-- Create an issue on GitHub
-- Check the documentation in the `docs/` directory
-- Review MCP server documentation for specific tool capabilities
+| Sport | Primary Source | Backup Source | Status |
+|-------|---------------|---------------|--------|
+| F1 | Ergast API | ESPN Scraping | ✅ Active |
+| Soccer | API-Football | ESPN Scraping | ⏳ Planned |
+| NFL | SportsDataIO | ESPN API | ⏳ Planned |
+| NBA | NBA API | SportsDataIO | ⏳ Planned |
+| Boxing | BoxingScene | ESPN Scraping | ⏳ Planned |
+| MMA/UFC | RapidAPI | UFC.com Scraping | ⏳ Planned |
