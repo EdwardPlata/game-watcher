@@ -378,13 +378,15 @@ class DatabaseManager(LoggerMixin):
             # Match by participants
             for odds_entry in odds_entries:
                 odds_participants = json.loads(odds_entry['participants'])
-                # Check if there's overlap in participants
-                if any(p.lower() in ' '.join(participants).lower() for p in odds_participants):
-                    # Parse JSON fields
-                    odds_entry['participants'] = odds_participants
-                    odds_entry['odds_data'] = json.loads(odds_entry['odds_data'])
-                    odds_entry['best_odds'] = json.loads(odds_entry['best_odds'])
-                    return odds_entry
+                # Check if any search term appears in any participant name
+                search_text = ' '.join(participants).lower()
+                for odds_participant in odds_participants:
+                    if odds_participant.lower() in search_text or any(term.lower() in odds_participant.lower() for term in participants):
+                        # Parse JSON fields
+                        odds_entry['participants'] = odds_participants
+                        odds_entry['odds_data'] = json.loads(odds_entry['odds_data'])
+                        odds_entry['best_odds'] = json.loads(odds_entry['best_odds'])
+                        return odds_entry
             
             return None
     
