@@ -160,6 +160,57 @@
             </div>
         </div>
 
+        <!-- Betting Odds Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5><i class="fas fa-chart-line"></i> Betting Odds Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <p class="mb-3">
+                                    Betting odds are automatically collected every 30 minutes from The Odds API.
+                                    Odds are fetched for NFL, NBA, Soccer, MMA, Boxing, and F1 events.
+                                </p>
+                                <div class="alert alert-info" id="oddsStatusAlert">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="oddsStatusText">Checking betting odds status...</span>
+                                </div>
+                                <div id="oddsStats" class="mb-3" style="display: none;">
+                                    <strong>Current Betting Odds:</strong>
+                                    <ul class="mt-2">
+                                        <li id="oddsCount">Loading...</li>
+                                        <li id="oddsSports">Loading...</li>
+                                        <li id="oddsLastUpdate">Loading...</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-warning w-100 mb-2" onclick="collectBettingOdds()">
+                                    <i class="fas fa-sync-alt"></i> Collect Betting Odds Now
+                                </button>
+                                <button class="btn btn-outline-warning w-100" onclick="viewBettingOdds()">
+                                    <i class="fas fa-eye"></i> View All Odds
+                                </button>
+                                <div id="oddsCollectionResult" class="mt-3"></div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-key"></i> 
+                                Configuration: 
+                                <span id="apiKeyStatus">Checking...</span>
+                                •
+                                <a href="/docs/BETTING_ODDS_GUIDE.md" target="_blank">Setup Guide</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Sports Management -->
         <div class="row">
             <div class="col-md-8">
@@ -320,6 +371,120 @@
             
             addLog('All sports collection completed!');
         }
+
+        // Betting Odds Functions
+        async function checkBettingOddsStatus() {
+            try {
+                // Check if API key is configured by attempting to get odds
+                const response = await fetch('/api/v1/betting/odds?limit=1');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('apiKeyStatus').innerHTML = 
+                        '<span class="badge bg-success">API Configured</span>';
+                    
+                    // Load odds stats
+                    await loadOddsStats();
+                } else {
+                    document.getElementById('apiKeyStatus').innerHTML = 
+                        '<span class="badge bg-warning text-dark">API Key Not Set</span>';
+                    document.getElementById('oddsStatusText').textContent = 
+                        'Betting odds collection is disabled. Set ODDS_API_KEY environment variable to enable.';
+                    document.getElementById('oddsStatusAlert').className = 'alert alert-warning';
+                }
+            } catch (error) {
+                console.error('Error checking odds status:', error);
+                document.getElementById('apiKeyStatus').innerHTML = 
+                    '<span class="badge bg-secondary">Unknown</span>';
+            }
+        }
+
+        async function loadOddsStats() {
+            try {
+                const response = await fetch('/api/v1/betting/odds?limit=1000');
+                const odds = await response.json();
+                
+                if (response.ok && odds.length > 0) {
+                    // Count sports
+                    const sports = new Set(odds.map(o => o.sport));
+                    const latestUpdate = odds[0].scraped_at;
+                    
+                    document.getElementById('oddsCount').textContent = 
+                        `${odds.length} betting odds entries`;
+                    document.getElementById('oddsSports').textContent = 
+                        `Covering ${sports.size} sports: ${Array.from(sports).join(', ')}`;
+                    document.getElementById('oddsLastUpdate').textContent = 
+                        `Last updated: ${new Date(latestUpdate).toLocaleString()}`;
+                    
+                    document.getElementById('oddsStats').style.display = 'block';
+                    document.getElementById('oddsStatusText').textContent = 
+                        'Betting odds are being collected automatically.';
+                    document.getElementById('oddsStatusAlert').className = 'alert alert-success';
+                } else {
+                    document.getElementById('oddsStatusText').textContent = 
+                        'No betting odds data available yet. Click "Collect Betting Odds Now" to fetch data.';
+                    document.getElementById('oddsStatusAlert').className = 'alert alert-info';
+                }
+            } catch (error) {
+                console.error('Error loading odds stats:', error);
+            }
+        }
+
+        async function collectBettingOdds() {
+            const resultDiv = document.getElementById('oddsCollectionResult');
+            resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Collecting betting odds...</div>';
+            
+            addLog('Starting betting odds collection...');
+            
+            try {
+                const response = await fetch('/api/v1/betting/collect', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            Successfully collected ${result.odds_collected} betting odds entries.
+                            Inserted/Updated: ${result.odds_inserted}
+                            <br><small>Duration: ${result.duration_seconds.toFixed(2)}s</small>
+                        </div>
+                    `;
+                    addLog(`Betting odds collection successful: ${result.odds_collected} odds collected`);
+                    
+                    // Refresh stats
+                    setTimeout(() => {
+                        loadOddsStats();
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${result.message || 'Failed to collect betting odds'}
+                        </div>
+                    `;
+                    addLog(`Betting odds collection failed: ${result.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+                addLog(`Betting odds collection error: ${error.message}`);
+            }
+        }
+
+        function viewBettingOdds() {
+            window.open('/api/v1/betting/odds', '_blank');
+        }
+
+        // Check odds status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkBettingOddsStatus();
+        });
     </script>
 </body>
 </html>
