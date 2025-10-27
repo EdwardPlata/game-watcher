@@ -263,13 +263,32 @@ class FutbolCollector(BaseDataCollector):
                 if odds_info:
                     event_name += f" [Odds: {', '.join(odds_info)}]"
                 
+                # Try to extract watch link from ESPN
+                watch_link = None
+                # Look for ESPN+ or streaming links
+                links = row.find_all('a', href=True)
+                for link in links:
+                    href = link.get('href', '')
+                    if 'watch' in href.lower() or 'stream' in href.lower() or 'espnplus' in href.lower():
+                        # Make sure it's an absolute URL
+                        if href.startswith('/'):
+                            watch_link = f"https://www.espn.com{href}"
+                        elif href.startswith('http'):
+                            watch_link = href
+                        break
+                
+                # If no streaming link, create generic ESPN soccer page link
+                if not watch_link:
+                    watch_link = f"https://www.espn.com/soccer/"
+                
                 event = create_event(
                     sport="futbol",
                     date=event_date,
                     event=event_name,
                     participants=teams,
                     location=venue,
-                    leagues=leagues  # This should now be a proper list, not individual characters
+                    leagues=leagues,
+                    watch_link=watch_link
                 )
                 events.append(event)
                 
