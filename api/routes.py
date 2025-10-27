@@ -546,7 +546,7 @@ async def add_webhook(config: WebhookConfig, db: DatabaseManager = Depends(get_d
         }
     except Exception as e:
         logger.error(f"Error adding webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to configure webhook")
 
 
 @router.get("/webhooks")
@@ -557,7 +557,7 @@ async def list_webhooks(db: DatabaseManager = Depends(get_db)):
         return {"webhooks": configs, "total": len(configs)}
     except Exception as e:
         logger.error(f"Error listing webhooks: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list webhooks")
 
 
 @router.post("/webhooks/test")
@@ -574,7 +574,7 @@ async def test_webhook_endpoint(url: str = Body(..., embed=True)):
         }
     except Exception as e:
         logger.error(f"Error testing webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to test webhook")
 
 
 @router.post("/webhooks/send")
@@ -633,9 +633,17 @@ async def trigger_webhook_delivery(
         webhook_delivery = WebhookDelivery(db)
         result = webhook_delivery.send_new_events(formatted_events)
         
-        return result
+        # Sanitize result before returning
+        safe_result = {
+            "success": result.get("success", False),
+            "events_sent": result.get("events_sent", 0),
+            "webhooks_notified": result.get("webhooks_notified", 0),
+            "total_webhooks": result.get("total_webhooks", 0)
+        }
+        
+        return safe_result
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error triggering webhook delivery: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to trigger webhook delivery")

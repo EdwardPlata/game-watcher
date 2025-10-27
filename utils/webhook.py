@@ -93,6 +93,16 @@ class WebhookDelivery:
         Returns:
             Dictionary with delivery result
         """
+        # Validate URL to prevent SSRF
+        if not self._is_safe_webhook_url(url):
+            return {
+                "webhook": name,
+                "url": url,
+                "success": False,
+                "error": "Invalid or unsafe webhook URL",
+                "attempts": 0
+            }
+        
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "game-watcher/1.0"
@@ -172,6 +182,11 @@ class WebhookDelivery:
         Returns:
             True if webhook is reachable
         """
+        # Validate URL to prevent SSRF attacks
+        if not self._is_safe_webhook_url(url):
+            logger.error(f"Unsafe webhook URL rejected: {url}")
+            return False
+        
         test_payload = {
             "event_type": "test",
             "timestamp": datetime.now().isoformat(),
@@ -188,4 +203,63 @@ class WebhookDelivery:
             return response.status_code in [200, 201, 202, 204]
         except Exception as e:
             logger.error(f"Webhook test failed: {e}")
+            return False
+    
+    def _is_safe_webhook_url(self, url: str) -> bool:
+        """
+        Validate webhook URL to prevent SSRF attacks.
+        
+        Args:
+            url: URL to validate
+        
+        Returns:
+            True if URL is safe to use
+        """
+        from urllib.parse import urlparse
+        
+        try:
+            parsed = urlparse(url)
+            
+            # Must be HTTP or HTTPS
+            if parsed.scheme not in ['http', 'https']:
+                return False
+            
+            # Must have a hostname
+            if not parsed.hostname:
+                return False
+            
+            # Block localhost and private IP ranges
+            hostname = parsed.hostname.lower()
+            
+            # Block localhost variants
+            if hostname in ['localhost', '127.0.0.1', '0.0.0.0', '::1']:
+                logger.warning(f"Blocked localhost webhook URL: {url}")
+                return False
+            
+            # Block private IP ranges (simplified check)
+            if (hostname.startswith('10.') or 
+                hostname.startswith('192.168.') or
+                hostname.startswith('172.16.') or
+                hostname.startswith('172.17.') or
+                hostname.startswith('172.18.') or
+                hostname.startswith('172.19.') or
+                hostname.startswith('172.20.') or
+                hostname.startswith('172.21.') or
+                hostname.startswith('172.22.') or
+                hostname.startswith('172.23.') or
+                hostname.startswith('172.24.') or
+                hostname.startswith('172.25.') or
+                hostname.startswith('172.26.') or
+                hostname.startswith('172.27.') or
+                hostname.startswith('172.28.') or
+                hostname.startswith('172.29.') or
+                hostname.startswith('172.30.') or
+                hostname.startswith('172.31.')):
+                logger.warning(f"Blocked private IP webhook URL: {url}")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error validating webhook URL: {e}")
             return False

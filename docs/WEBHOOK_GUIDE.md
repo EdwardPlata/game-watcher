@@ -22,7 +22,7 @@ When new events are collected, the following JSON payload is sent to configured 
       "date": "2025-10-28T18:00:00Z",
       "event": "Real Madrid vs Barcelona",
       "participants": ["Real Madrid", "Barcelona"],
-      "location": "Santiago Bernabéu",
+      "location": "Santiago Bernabeu",
       "leagues": ["La Liga", "Spanish Football"],
       "watch_link": "https://www.espn.com/soccer/",
       "scraped_at": "2025-10-27T17:00:00Z"
@@ -191,7 +191,7 @@ tail -f sports_calendar.log | grep -i webhook
 
 ### Webhook Not Receiving Events
 
-1. Verify webhook URL is accessible: `curl -X POST https://your-webhook-url -d '{"test": true}'`
+1. Verify webhook URL is accessible: `curl -X POST https://your-webhook-url -H 'Content-Type: application/json' -d '{"test": true}'`
 2. Check webhook is enabled in database
 3. Review logs for delivery errors
 4. Test webhook using the test endpoint

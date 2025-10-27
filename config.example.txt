@@ -18,13 +18,14 @@
 #   }'
 
 # To add a webhook via Python:
-# from utils import DatabaseManager
-# db = DatabaseManager()
-# db.add_webhook_config(
-#     name="my-webhook",
-#     url="https://your-app.com/api/webhooks/sports",
-#     enabled=True
-# )
+from utils import DatabaseManager
+
+db = DatabaseManager()
+db.add_webhook_config(
+    name="my-webhook",
+    url="https://your-app.com/api/webhooks/sports",
+    enabled=True
+)
 
 # Supported Sports:
 # - futbol (Soccer - all Europa leagues, La Liga, Premier League, etc.)
