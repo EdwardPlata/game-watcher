@@ -32,6 +32,7 @@ class DatabaseManager(LoggerMixin):
                     participants TEXT NOT NULL,  -- JSON array
                     location TEXT,
                     leagues TEXT,  -- JSON array of leagues/tags
+                    watch_link TEXT,  -- Link to watch event online
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     synced_to_calendar BOOLEAN DEFAULT FALSE
@@ -46,10 +47,26 @@ class DatabaseManager(LoggerMixin):
                 cursor.execute('ALTER TABLE events ADD COLUMN leagues TEXT DEFAULT "[]"')
                 self.logger.info("Added leagues column to events table")
             
+            # Check if watch_link column exists, if not add it
+            if 'watch_link' not in columns:
+                cursor.execute('ALTER TABLE events ADD COLUMN watch_link TEXT')
+                self.logger.info("Added watch_link column to events table")
+            
             # Create index for faster queries
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_sport_date ON events(sport, date)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_scraped_at ON events(scraped_at)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_leagues ON events(leagues)')
+            
+            # Create webhook_config table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS webhook_config (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    url TEXT NOT NULL,
+                    enabled BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             
             conn.commit()
             self.logger.info("Database initialized successfully")
@@ -72,15 +89,16 @@ class DatabaseManager(LoggerMixin):
                 
                 if cursor.fetchone() is None:
                     cursor.execute('''
-                        INSERT INTO events (sport, date, event, participants, location, leagues, scraped_at)
-                        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        INSERT INTO events (sport, date, event, participants, location, leagues, watch_link, scraped_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ''', (
                         event['sport'],
                         event['date'],
                         event['event'],
                         json.dumps(event['participants']),
                         event['location'],
-                        json.dumps(event.get('leagues', []))
+                        json.dumps(event.get('leagues', [])),
+                        event.get('watch_link')
                     ))
                     inserted_count += 1
             
@@ -182,7 +200,7 @@ class DatabaseManager(LoggerMixin):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT id, sport, date, event, participants, location, leagues, scraped_at
+                SELECT id, sport, date, event, participants, location, leagues, watch_link, scraped_at
                 FROM events 
                 WHERE sport = ?
                 ORDER BY date DESC
@@ -201,7 +219,7 @@ class DatabaseManager(LoggerMixin):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT id, sport, date, event, participants, location, leagues, scraped_at
+                SELECT id, sport, date, event, participants, location, leagues, watch_link, scraped_at
                 FROM events 
                 ORDER BY date DESC
                 LIMIT ?
@@ -219,7 +237,7 @@ class DatabaseManager(LoggerMixin):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT id, sport, date, event, participants, location, leagues, scraped_at
+                SELECT id, sport, date, event, participants, location, leagues, watch_link, scraped_at
                 FROM events 
                 WHERE id = ?
             ''', (event_id,))
@@ -228,3 +246,49 @@ class DatabaseManager(LoggerMixin):
             if row:
                 return dict(row)
             return None
+    
+    def get_webhook_configs(self) -> List[Dict]:
+        """Get all enabled webhook configurations."""
+        with sqlite3.connect(self.db_name) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, name, url, enabled
+                FROM webhook_config 
+                WHERE enabled = TRUE
+            ''')
+            
+            configs = []
+            for row in cursor.fetchall():
+                configs.append(dict(row))
+            
+            return configs
+    
+    def add_webhook_config(self, name: str, url: str, enabled: bool = True) -> int:
+        """Add a new webhook configuration."""
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO webhook_config (name, url, enabled)
+                VALUES (?, ?, ?)
+            ''', (name, url, enabled))
+            conn.commit()
+            return cursor.lastrowid
+    
+    def get_new_events_since(self, since_timestamp: str) -> List[Dict]:
+        """Get events added since a specific timestamp."""
+        with sqlite3.connect(self.db_name) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, sport, date, event, participants, location, leagues, watch_link, scraped_at
+                FROM events 
+                WHERE scraped_at > ?
+                ORDER BY scraped_at ASC
+            ''', (since_timestamp,))
+            
+            events = []
+            for row in cursor.fetchall():
+                events.append(dict(row))
+            
+            return events

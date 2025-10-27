@@ -11,6 +11,7 @@ from .base_collector import BaseDataCollector
 from .calendar_sync import CalendarSync
 from .monitoring import HealthMonitor, MetricsCollector
 from .event_schema import EVENT_SCHEMA, validate_event
+from .webhook import WebhookDelivery
 
 __all__ = [
     'get_logger',
@@ -20,5 +21,6 @@ __all__ = [
     'HealthMonitor',
     'MetricsCollector',
     'EVENT_SCHEMA',
-    'validate_event'
+    'validate_event',
+    'WebhookDelivery'
 ]

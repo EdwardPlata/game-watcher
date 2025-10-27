@@ -4,15 +4,16 @@ FastAPI routes for sports calendar API.
 
 from datetime import datetime, timedelta, date
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 import json
 
-from utils import DatabaseManager, get_logger
+from utils import DatabaseManager, get_logger, WebhookDelivery
 from collectors import COLLECTORS, get_collector
 from .models import (
     EventResponse, EventsResponse, SportInfo, SportsResponse,
-    CalendarDay, CalendarMonth, HealthStatus, CollectionResult
+    CalendarDay, CalendarMonth, HealthStatus, CollectionResult,
+    WebhookConfig, WebhookPayload
 )
 
 logger = get_logger(__name__)
@@ -162,6 +163,7 @@ async def get_events(
                     participants=participants,
                     location=event['location'],
                     leagues=leagues,
+                    watch_link=event.get('watch_link'),
                     scraped_at=event['scraped_at']
                 )
                 event_responses.append(event_response)
@@ -223,6 +225,7 @@ async def get_event(event_id: int, db: DatabaseManager = Depends(get_db)):
             participants=participants,
             location=event['location'],
             leagues=leagues,
+            watch_link=event.get('watch_link'),
             scraped_at=event['scraped_at']
         )
         
@@ -307,6 +310,7 @@ async def get_calendar_month(
                     participants=participants,
                     location=event['location'],
                     leagues=leagues,
+                    watch_link=event.get('watch_link'),
                     scraped_at=event['scraped_at']
                 )
                 days_dict[day_str].append(event_response)
@@ -370,15 +374,29 @@ async def collect_sport_data(sport: str, db: DatabaseManager = Depends(get_db)):
         events = collector.parse_events(raw_data)
         events_collected = len(events)
         
+        # Store timestamp before insertion to track new events
+        before_insert_time = datetime.now().isoformat()
+        
         # Insert into database
         events_inserted = 0
+        newly_inserted_events = []
         for event in events:
             try:
-                db.insert_event(event)
-                events_inserted += 1
+                if db.insert_event(event):
+                    events_inserted += 1
+                    newly_inserted_events.append(event)
             except Exception as e:
                 logger.warning(f"Failed to insert event: {e}")
                 continue
+        
+        # Send webhooks if new events were added
+        if newly_inserted_events:
+            try:
+                webhook_delivery = WebhookDelivery(db)
+                webhook_result = webhook_delivery.send_new_events(newly_inserted_events)
+                logger.info(f"Webhook delivery result: {webhook_result}")
+            except Exception as e:
+                logger.error(f"Failed to send webhooks: {e}")
         
         duration = (datetime.now() - start_time).total_seconds()
         
@@ -506,3 +524,126 @@ async def collect_all_data(db: DatabaseManager = Depends(get_db)):
             ))
     
     return results
+
+
+@router.post("/webhooks")
+async def add_webhook(config: WebhookConfig, db: DatabaseManager = Depends(get_db)):
+    """Add or update a webhook configuration."""
+    try:
+        webhook_id = db.add_webhook_config(config.name, config.url, config.enabled)
+        
+        # Test the webhook
+        webhook_delivery = WebhookDelivery(db)
+        is_reachable = webhook_delivery.test_webhook(config.url)
+        
+        return {
+            "id": webhook_id,
+            "name": config.name,
+            "url": config.url,
+            "enabled": config.enabled,
+            "status": "reachable" if is_reachable else "unreachable",
+            "message": "Webhook configured successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error adding webhook: {e}")
+        raise HTTPException(status_code=500, detail="Failed to configure webhook")
+
+
+@router.get("/webhooks")
+async def list_webhooks(db: DatabaseManager = Depends(get_db)):
+    """List all configured webhooks."""
+    try:
+        configs = db.get_webhook_configs()
+        return {"webhooks": configs, "total": len(configs)}
+    except Exception as e:
+        logger.error(f"Error listing webhooks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list webhooks")
+
+
+@router.post("/webhooks/test")
+async def test_webhook_endpoint(url: str = Body(..., embed=True)):
+    """Test a webhook URL without saving it."""
+    try:
+        webhook_delivery = WebhookDelivery()
+        is_reachable = webhook_delivery.test_webhook(url)
+        
+        return {
+            "url": url,
+            "status": "reachable" if is_reachable else "unreachable",
+            "message": "Webhook is reachable" if is_reachable else "Webhook is not reachable"
+        }
+    except Exception as e:
+        logger.error(f"Error testing webhook: {e}")
+        raise HTTPException(status_code=500, detail="Failed to test webhook")
+
+
+@router.post("/webhooks/send")
+async def trigger_webhook_delivery(
+    sport: Optional[str] = Query(None, description="Filter by sport"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum events to send"),
+    db: DatabaseManager = Depends(get_db)
+):
+    """Manually trigger webhook delivery with recent events."""
+    try:
+        # Get recent events
+        if sport:
+            if sport not in COLLECTORS:
+                raise HTTPException(status_code=400, detail=f"Unsupported sport: {sport}")
+            events = db.get_events_by_sport(sport, limit=limit)
+        else:
+            events = db.get_all_events(limit=limit)
+        
+        if not events:
+            return {
+                "success": False,
+                "message": "No events to send",
+                "events_sent": 0
+            }
+        
+        # Convert to proper format
+        formatted_events = []
+        for event in events:
+            participants = event.get('participants', [])
+            if isinstance(participants, str):
+                try:
+                    participants = json.loads(participants)
+                except (json.JSONDecodeError, TypeError):
+                    participants = [participants] if participants else []
+            
+            leagues = event.get('leagues', [])
+            if isinstance(leagues, str):
+                try:
+                    leagues = json.loads(leagues)
+                except (json.JSONDecodeError, TypeError):
+                    leagues = [leagues] if leagues else []
+            
+            formatted_events.append({
+                "id": event['id'],
+                "sport": event['sport'],
+                "date": event['date'],
+                "event": event['event'],
+                "participants": participants,
+                "location": event['location'],
+                "leagues": leagues,
+                "watch_link": event.get('watch_link'),
+                "scraped_at": event['scraped_at']
+            })
+        
+        # Send via webhooks
+        webhook_delivery = WebhookDelivery(db)
+        result = webhook_delivery.send_new_events(formatted_events)
+        
+        # Sanitize result before returning
+        safe_result = {
+            "success": result.get("success", False),
+            "events_sent": result.get("events_sent", 0),
+            "webhooks_notified": result.get("webhooks_notified", 0),
+            "total_webhooks": result.get("total_webhooks", 0)
+        }
+        
+        return safe_result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error triggering webhook delivery: {e}")
+        raise HTTPException(status_code=500, detail="Failed to trigger webhook delivery")

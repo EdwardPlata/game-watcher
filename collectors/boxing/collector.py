@@ -170,13 +170,27 @@ class BoxingCollector(BaseDataCollector):
                 if weight_class and weight_class not in event_title:
                     event_title += f" ({weight_class})"
                 
+                # Try to extract watch link
+                watch_link = None
+                links = container.find_all('a', href=True)
+                for link in links:
+                    href = link.get('href', '')
+                    if 'watch' in href.lower() or 'stream' in href.lower() or 'ppv' in href.lower():
+                        watch_link = href if href.startswith('http') else f"https://www.boxingscene.com{href}"
+                        break
+                
+                # If no specific link, provide generic boxing schedule page
+                if not watch_link:
+                    watch_link = "https://www.boxingscene.com/schedule"
+                
                 event = create_event(
                     sport="boxing",
                     date=event_date,
                     event=event_title,
                     participants=participants,
                     location=venue,
-                    leagues=leagues
+                    leagues=leagues,
+                    watch_link=watch_link
                 )
                 events.append(event)
                 

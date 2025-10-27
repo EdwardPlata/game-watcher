@@ -15,6 +15,7 @@ class EventCreate(BaseModel):
     participants: List[str] = Field(default_factory=list, description="List of participants")
     location: str = Field(..., description="Event location")
     leagues: List[str] = Field(default_factory=list, description="List of leagues/tags")
+    watch_link: Optional[str] = Field(None, description="Link to watch event online")
 
 
 class EventResponse(BaseModel):
@@ -26,6 +27,7 @@ class EventResponse(BaseModel):
     participants: List[str]
     location: str
     leagues: List[str]
+    watch_link: Optional[str] = None
     scraped_at: str
     
     class Config:
@@ -87,3 +89,19 @@ class CollectionResult(BaseModel):
     events_inserted: int
     error_message: Optional[str] = None
     duration_seconds: float
+
+
+class WebhookConfig(BaseModel):
+    """Model for webhook configuration."""
+    id: Optional[int] = None
+    name: str
+    url: str
+    enabled: bool = True
+
+
+class WebhookPayload(BaseModel):
+    """Model for webhook payload sent to frontend."""
+    event_type: str = Field(..., description="Type of event: 'new_events'")
+    timestamp: str = Field(..., description="ISO timestamp of webhook")
+    events: List[EventResponse] = Field(..., description="List of new events")
+    total: int = Field(..., description="Total number of events in payload")

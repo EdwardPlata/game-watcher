@@ -128,13 +128,30 @@ class MMACollector(BaseDataCollector):
                     elif "pfl" in event_title.lower():
                         leagues = ["PFL"]
                     
+                    # Try to extract watch link
+                    watch_link = None
+                    links = container.find_all('a', href=True)
+                    for link in links:
+                        href = link.get('href', '')
+                        if 'watch' in href.lower() or 'stream' in href.lower() or 'ppv' in href.lower():
+                            if href.startswith('http'):
+                                watch_link = href
+                            elif href.startswith('/'):
+                                watch_link = f"https://www.ufc.com{href}"
+                            break
+                    
+                    # Default UFC watch link
+                    if not watch_link:
+                        watch_link = "https://www.ufc.com/events"
+                    
                     event = create_event(
                         sport="mma",
                         date=event_date,
                         event=f"{event_title}: {main_event}",
                         participants=participants,
                         location=venue,
-                        leagues=leagues
+                        leagues=leagues,
+                        watch_link=watch_link
                     )
                     events.append(event)
                     
@@ -181,6 +198,17 @@ class MMACollector(BaseDataCollector):
                 venue_elem = element.find(['span', 'div'], class_=re.compile(r'venue|location', re.I))
                 venue = venue_elem.get_text(strip=True) if venue_elem else "TBD"
                 
+                # Extract watch link
+                watch_link = None
+                links = element.find_all('a', href=True)
+                for link in links:
+                    href = link.get('href', '')
+                    if 'watch' in href.lower() or 'stream' in href.lower():
+                        watch_link = href if href.startswith('http') else f"https://www.mmafighting.com{href}"
+                        break
+                if not watch_link:
+                    watch_link = "https://www.mmafighting.com/schedule"
+                
                 # Create event
                 if event_title or len(fighters) >= 2:
                     if not event_title:
@@ -193,7 +221,8 @@ class MMACollector(BaseDataCollector):
                         date=event_date,
                         event=event_title,
                         participants=participants,
-                        location=venue
+                        location=venue,
+                        watch_link=watch_link
                     )
                     events.append(event)
                     
@@ -233,6 +262,17 @@ class MMACollector(BaseDataCollector):
                 venue_elem = element.find(['span', 'div'], class_=re.compile(r'venue|location', re.I))
                 venue = venue_elem.get_text(strip=True) if venue_elem else "TBD"
                 
+                # Extract watch link
+                watch_link = None
+                links = element.find_all('a', href=True)
+                for link in links:
+                    href = link.get('href', '')
+                    if 'event' in href.lower() or 'fightcenter' in href.lower():
+                        watch_link = href if href.startswith('http') else f"https://www.tapology.com{href}"
+                        break
+                if not watch_link:
+                    watch_link = "https://www.tapology.com/fightcenter"
+                
                 # Create event
                 if len(fighters) >= 2:
                     event_title = f"{organization}: {fighters[0]} vs {fighters[1]}"
@@ -242,7 +282,8 @@ class MMACollector(BaseDataCollector):
                         date=event_date,
                         event=event_title,
                         participants=fighters[:2],
-                        location=venue
+                        location=venue,
+                        watch_link=watch_link
                     )
                     events.append(event)
                     

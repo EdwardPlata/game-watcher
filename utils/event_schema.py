@@ -14,7 +14,8 @@ EVENT_SCHEMA = {
     "event": "",
     "participants": [],
     "location": "",
-    "leagues": []  # List of leagues/tags this event belongs to
+    "leagues": [],  # List of leagues/tags this event belongs to
+    "watch_link": None  # Link to watch event online
 }
 
 
@@ -60,7 +61,7 @@ def validate_event(event: Dict[str, Any]) -> bool:
     return True
 
 
-def create_event(sport: str, date: str, event: str, participants: List[str], location: str, leagues: List[str] = None) -> Dict[str, Any]:
+def create_event(sport: str, date: str, event: str, participants: List[str], location: str, leagues: List[str] = None, watch_link: str = None) -> Dict[str, Any]:
     """
     Create a standardized event dictionary.
     
@@ -71,6 +72,7 @@ def create_event(sport: str, date: str, event: str, participants: List[str], loc
         participants: List of participants
         location: Event location
         leagues: List of leagues/tags this event belongs to
+        watch_link: Link to watch event online
     
     Returns:
         Validated event dictionary
@@ -81,7 +83,8 @@ def create_event(sport: str, date: str, event: str, participants: List[str], loc
         "event": event,
         "participants": participants,
         "location": location,
-        "leagues": leagues or []
+        "leagues": leagues or [],
+        "watch_link": watch_link
     }
     
     if not validate_event(event_dict):

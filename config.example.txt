@@ -1,0 +1,64 @@
+# Game Watcher Configuration Example
+# This file shows example configurations for webhooks and other settings
+
+# Webhook Configuration
+# Add webhooks via the API or database to receive real-time event notifications
+
+# Example webhook URLs:
+# - Development: http://localhost:3000/api/webhooks/sports
+# - Production: https://your-app.com/api/webhooks/sports
+
+# To add a webhook via API:
+# curl -X POST http://localhost:8000/api/v1/webhooks \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "name": "frontend-webhook",
+#     "url": "https://your-app.com/api/webhooks/sports",
+#     "enabled": true
+#   }'
+
+# To add a webhook via Python:
+from utils import DatabaseManager
+
+db = DatabaseManager()
+db.add_webhook_config(
+    name="my-webhook",
+    url="https://your-app.com/api/webhooks/sports",
+    enabled=True
+)
+
+# Supported Sports:
+# - futbol (Soccer - all Europa leagues, La Liga, Premier League, etc.)
+# - mma (UFC fights and other MMA events)
+# - boxing (Professional boxing matches)
+# - f1 (Formula One races)
+# - nba (Basketball - planned)
+# - nfl (American Football - planned)
+
+# Data Collection Schedule:
+# - Default: Daily at 2:00 AM
+# - Can be customized in main.py scheduler configuration
+
+# Database:
+# - Default: sports_calendar.db (SQLite)
+# - Location: Project root directory
+# - Automatically created on first run
+
+# API Server:
+# - Default port: 8000
+# - Access: http://localhost:8000
+# - API docs: http://localhost:8000/docs
+# - Admin: http://localhost:8000/admin
+
+# Watch Links:
+# Events include watch_link field with URLs to:
+# - ESPN for soccer matches
+# - UFC.com for UFC events
+# - Formula1.com for F1 races
+# - BoxingScene for boxing matches
+# - And other streaming/TV sources
+
+# For more information, see:
+# - README.md
+# - docs/WEBHOOK_GUIDE.md
+# - docs/ARCHITECTURE.md

@@ -148,13 +148,17 @@ class F1Collector(BaseDataCollector):
                                 if "grand prix" in race_name.lower():
                                     leagues.append("Grand Prix")
                                 
+                                # Create watch link for F1 races
+                                watch_link = "https://www.formula1.com/en/racing/2025.html"
+                                
                                 event = create_event(
                                     sport="f1",
                                     date=parsed_date,
                                     event=event_name,
                                     participants=["F1 Drivers"],
                                     location=event_location,
-                                    leagues=leagues
+                                    leagues=leagues,
+                                    watch_link=watch_link
                                 )
                                 events.append(event)
                                 
@@ -192,12 +196,25 @@ class F1Collector(BaseDataCollector):
                     if parsed_date:
                         event_name = f"F1 {race_name}" if not race_name.startswith("F1") else race_name
                         
+                        # Extract watch link from official F1 site
+                        watch_link = None
+                        links = container.find_all('a', href=True)
+                        for link in links:
+                            href = link.get('href', '')
+                            if 'watch' in href.lower() or 'race' in href.lower():
+                                watch_link = href if href.startswith('http') else f"https://www.formula1.com{href}"
+                                break
+                        
+                        if not watch_link:
+                            watch_link = "https://www.formula1.com/en/racing/2025.html"
+                        
                         event = create_event(
                             sport="f1",
                             date=parsed_date,
                             event=event_name,
                             participants=["F1 Drivers"],
-                            location=location
+                            location=location,
+                            watch_link=watch_link
                         )
                         events.append(event)
                         
@@ -276,187 +293,3 @@ class F1Collector(BaseDataCollector):
             self.logger.debug(f"Error parsing F1 date '{date_string}': {e}")
         
         return None
-
-from datetime import datetime
-from typing import List, Dict, Any
-import re
-from bs4 import BeautifulSoup
-from utils.base_collector import BaseDataCollector
-from utils.event_schema import create_event
-
-
-class F1Collector(BaseDataCollector):
-    """Collects F1 race schedule data from Wikipedia."""
-    
-    def __init__(self):
-        super().__init__("f1")
-        self.base_url = "https://en.wikipedia.org/wiki/2025_Formula_One_World_Championship"
-    
-    def get_base_url(self) -> str:
-        """Get the base URL for Wikipedia F1 schedule."""
-        return self.base_url
-    
-    def fetch_raw_data(self) -> str:
-        """
-        Fetch F1 race schedule from Wikipedia.
-        
-        Returns:
-            Raw HTML content from the page
-        
-        Raises:
-            requests.RequestException: If request fails
-        """
-        response = self.make_request(self.base_url)
-        return response.text
-    
-    def parse_events(self, raw_data: str) -> List[Dict]:
-        """
-        Parse F1 data from Wikipedia HTML into standardized format.
-        
-        Args:
-            raw_data: Raw HTML content from Wikipedia
-        
-        Returns:
-            List of standardized event dictionaries
-        """
-        events = []
-        
-        try:
-            soup = BeautifulSoup(raw_data, 'html.parser')
-            
-            # Find the race calendar table - it's usually in a table with class "wikitable"
-            # Look for tables containing race information
-            tables = soup.find_all('table', class_='wikitable')
-            
-            for table in tables:
-                # Check if this table contains race information by looking for headers
-                headers = table.find('tr')
-                if not headers:
-                    continue
-                    
-                header_text = headers.get_text().lower()
-                if 'grand prix' in header_text or 'race' in header_text or 'round' in header_text:
-                    # This looks like a race calendar table
-                    rows = table.find_all('tr')[1:]  # Skip header row
-                    
-                    for row in rows:
-                        cells = row.find_all(['td', 'th'])
-                        if len(cells) < 3:
-                            continue
-                        
-                        try:
-                            # Extract race information - format may vary
-                            # Typical columns: Round, Grand Prix, Circuit, Date, Time
-                            race_name = ""
-                            circuit_name = ""
-                            race_date = ""
-                            
-                            # Look for Grand Prix name (usually contains "Grand Prix")
-                            for cell in cells:
-                                cell_text = cell.get_text(strip=True)
-                                if "grand prix" in cell_text.lower():
-                                    race_name = cell_text
-                                    break
-                            
-                            # Look for circuit/location information
-                            for cell in cells:
-                                cell_text = cell.get_text(strip=True)
-                                # Skip if it's the race name we already found
-                                if cell_text == race_name:
-                                    continue
-                                # Look for circuit indicators
-                                if any(word in cell_text.lower() for word in ['circuit', 'international', 'speedway', 'track']):
-                                    circuit_name = cell_text
-                                    break
-                            
-                            # Look for date information
-                            for cell in cells:
-                                cell_text = cell.get_text(strip=True)
-                                # Try to find date patterns
-                                if re.search(r'\d{1,2}[–-]\d{1,2}\s+\w+|\d{1,2}\s+\w+|\w+\s+\d{1,2}', cell_text):
-                                    race_date = cell_text
-                                    break
-                            
-                            # If we found essential information, create an event
-                            if race_name and (circuit_name or race_date):
-                                # Try to parse the date into ISO format
-                                iso_date = self._parse_date_to_iso(race_date)
-                                
-                                if not circuit_name:
-                                    circuit_name = "TBD"
-                                
-                                event = create_event(
-                                    sport="f1",
-                                    date=iso_date,
-                                    event=race_name,
-                                    participants=["F1 Drivers"],
-                                    location=circuit_name
-                                )
-                                
-                                events.append(event)
-                                
-                        except Exception as e:
-                            self.logger.debug(f"Error parsing F1 race row: {e}")
-                            continue
-                    
-                    # If we found events in this table, we're done
-                    if events:
-                        break
-                        
-        except Exception as e:
-            self.logger.error(f"Error parsing F1 Wikipedia data: {e}")
-            raise
-        
-        self.logger.info(f"Parsed {len(events)} F1 events from Wikipedia")
-        return events
-    
-    def _parse_date_to_iso(self, date_str: str) -> str:
-        """
-        Parse various date formats to ISO format.
-        
-        Args:
-            date_str: Date string from Wikipedia
-        
-        Returns:
-            ISO formatted date string
-        """
-        try:
-            # If no date provided, use a placeholder
-            if not date_str:
-                return datetime.now().replace(hour=14, minute=0, second=0, microsecond=0).isoformat() + "Z"
-            
-            current_year = datetime.now().year
-            
-            # Handle date ranges like "15–17 March" - take the last date
-            if '–' in date_str or '-' in date_str:
-                # Split by dash and take the last part
-                parts = re.split(r'[–-]', date_str)
-                if len(parts) > 1:
-                    date_str = parts[-1].strip()
-            
-            # Common patterns to try
-            patterns = [
-                "%d %B",      # "15 March"
-                "%B %d",      # "March 15"
-                "%d %b",      # "15 Mar"
-                "%b %d",      # "Mar 15"
-            ]
-            
-            for pattern in patterns:
-                try:
-                    # Parse the date and add current year
-                    parsed_date = datetime.strptime(date_str.strip(), pattern)
-                    # Set to current year and add typical F1 race time (14:00 UTC)
-                    full_date = parsed_date.replace(year=current_year, hour=14, minute=0, second=0)
-                    return full_date.isoformat() + "Z"
-                except ValueError:
-                    continue
-            
-            # If no pattern matches, return a default time
-            self.logger.warning(f"Could not parse date: {date_str}")
-            return datetime.now().replace(hour=14, minute=0, second=0, microsecond=0).isoformat() + "Z"
-            
-        except Exception as e:
-            self.logger.warning(f"Error parsing date '{date_str}': {e}")
-            return datetime.now().replace(hour=14, minute=0, second=0, microsecond=0).isoformat() + "Z"
-
