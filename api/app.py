@@ -11,6 +11,7 @@ import os
 
 from .routes import router
 from .frontend import frontend_router
+from utils import get_betting_odds_scheduler
 
 
 def create_app() -> FastAPI:
@@ -46,4 +47,22 @@ def create_app() -> FastAPI:
     
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
+    # Startup event to initialize betting odds scheduler
+    @app.on_event("startup")
+    async def startup_event():
+        """Initialize services on startup."""
+        # Start betting odds collection scheduler
+        # Refresh every 30 minutes (adjust as needed to stay within API limits)
+        scheduler = get_betting_odds_scheduler(interval_minutes=30)
+        scheduler.start()
+        logging.info("Betting odds scheduler initialized")
+    
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        """Cleanup on shutdown."""
+        scheduler = get_betting_odds_scheduler()
+        scheduler.stop()
+        logging.info("Betting odds scheduler stopped")
+    
     return app
+

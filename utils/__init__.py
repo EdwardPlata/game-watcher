@@ -12,6 +12,7 @@ from .calendar_sync import CalendarSync
 from .monitoring import HealthMonitor, MetricsCollector
 from .event_schema import EVENT_SCHEMA, validate_event
 from .webhook import WebhookDelivery
+from .betting_scheduler import BettingOddsScheduler, get_betting_odds_scheduler
 
 __all__ = [
     'get_logger',
@@ -22,5 +23,8 @@ __all__ = [
     'MetricsCollector',
     'EVENT_SCHEMA',
     'validate_event',
-    'WebhookDelivery'
+    'WebhookDelivery',
+    'BettingOddsScheduler',
+    'get_betting_odds_scheduler'
 ]
+

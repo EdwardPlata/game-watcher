@@ -1,0 +1,191 @@
+<!-- Betting Odds Component -->
+<style>
+.betting-odds-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+    border-left: 4px solid #ffc107;
+}
+
+.betting-odds-header {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.odds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.odds-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.odds-team {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 4px;
+}
+
+.odds-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: #28a745;
+}
+
+.odds-probability {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.odds-bookmaker {
+    font-size: 11px;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.odds-refresh-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.odds-meta {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #dee2e6;
+}
+
+.no-odds {
+    text-align: center;
+    color: #6c757d;
+    font-size: 14px;
+    padding: 20px;
+}
+</style>
+
+<div class="betting-odds-card" id="betting-odds-{{ event.id }}">
+    <div class="betting-odds-header">
+        <i class="fas fa-chart-line"></i>
+        <span>Betting Odds</span>
+        <button class="btn btn-sm btn-outline-secondary odds-refresh-btn ms-auto" 
+                onclick="loadBettingOdds({{ event.id }})">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+    
+    <div id="odds-content-{{ event.id }}">
+        <div class="no-odds">
+            <i class="fas fa-spinner fa-spin"></i> Loading odds...
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadBettingOdds(eventId) {
+    const contentDiv = document.getElementById(`odds-content-${eventId}`);
+    
+    try {
+        contentDiv.innerHTML = '<div class="no-odds"><i class="fas fa-spinner fa-spin"></i> Loading odds...</div>';
+        
+        const response = await fetch(`/api/v1/events/${eventId}/odds`);
+        const data = await response.json();
+        
+        if (!data.has_odds) {
+            contentDiv.innerHTML = '<div class="no-odds"><i class="fas fa-info-circle"></i> No betting odds available for this event</div>';
+            return;
+        }
+        
+        const odds = data.odds;
+        const bestOdds = odds.best_odds;
+        
+        let oddsHTML = '<div class="odds-grid">';
+        
+        // Home team odds
+        if (bestOdds.home && bestOdds.home.price > 0) {
+            oddsHTML += `
+                <div class="odds-item">
+                    <div class="odds-team">${odds.home_team}</div>
+                    <div class="odds-price">${bestOdds.home.price.toFixed(2)}</div>
+                    <div class="odds-probability">${bestOdds.home.probability}% probability</div>
+                    <div class="odds-bookmaker">Best at: ${bestOdds.home.bookmaker}</div>
+                </div>
+            `;
+        }
+        
+        // Draw odds (if available)
+        if (bestOdds.draw && bestOdds.draw.price > 0) {
+            oddsHTML += `
+                <div class="odds-item">
+                    <div class="odds-team">Draw</div>
+                    <div class="odds-price">${bestOdds.draw.price.toFixed(2)}</div>
+                    <div class="odds-probability">${bestOdds.draw.probability}% probability</div>
+                    <div class="odds-bookmaker">Best at: ${bestOdds.draw.bookmaker}</div>
+                </div>
+            `;
+        }
+        
+        // Away team odds
+        if (bestOdds.away && bestOdds.away.price > 0) {
+            oddsHTML += `
+                <div class="odds-item">
+                    <div class="odds-team">${odds.away_team}</div>
+                    <div class="odds-price">${bestOdds.away.price.toFixed(2)}</div>
+                    <div class="odds-probability">${bestOdds.away.probability}% probability</div>
+                    <div class="odds-bookmaker">Best at: ${bestOdds.away.bookmaker}</div>
+                </div>
+            `;
+        }
+        
+        oddsHTML += '</div>';
+        
+        // Add metadata
+        const scrapedDate = new Date(odds.scraped_at);
+        oddsHTML += `
+            <div class="odds-meta">
+                <i class="fas fa-building"></i> ${odds.bookmaker_count} bookmaker${odds.bookmaker_count !== 1 ? 's' : ''} compared
+                • <i class="fas fa-clock"></i> Updated ${formatTimestamp(odds.scraped_at)}
+            </div>
+        `;
+        
+        contentDiv.innerHTML = oddsHTML;
+        
+    } catch (error) {
+        console.error('Error loading betting odds:', error);
+        contentDiv.innerHTML = '<div class="no-odds"><i class="fas fa-exclamation-triangle"></i> Failed to load betting odds</div>';
+    }
+}
+
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+}
+
+// Auto-load odds when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadBettingOdds({{ event.id }});
+});
+</script>
