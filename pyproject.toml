@@ -1,0 +1,162 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "game-watcher"
+version = "0.1.0"
+description = "Multi-sport event tracking and betting odds aggregation system"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "EdwardPlata", email = "edward@example.com"},
+]
+keywords = ["sports", "betting", "odds", "calendar", "events"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
+dependencies = [
+    # Core dependencies
+    "requests>=2.31.0",
+    "APScheduler>=3.10.0",
+    
+    # Date and time handling
+    "python-dateutil>=2.8.2",
+    "pytz>=2023.3",
+    
+    # Optional Google Calendar integration
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.1.1",
+    "google-auth-oauthlib>=1.0.0",
+    
+    # Additional API libraries for sports data
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "selenium>=4.11.0",
+    
+    # HTTP client enhancements
+    "httpx>=0.24.0",
+    "aiohttp>=3.8.0",
+    
+    # Data validation and parsing
+    "pydantic>=2.0.0",
+    "jsonschema>=4.19.0",
+    
+    # Monitoring and metrics
+    "prometheus-client>=0.17.0",
+    
+    # Configuration management
+    "python-dotenv>=1.0.0",
+    
+    # Logging enhancements
+    "structlog>=23.1.0",
+    
+    # API rate limiting
+    "ratelimit>=2.2.1",
+    
+    # FastAPI and web dependencies
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.6",
+    "fastapi-cors>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "black>=23.7.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+    "isort>=5.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/EdwardPlata/game-watcher"
+Repository = "https://github.com/EdwardPlata/game-watcher"
+Issues = "https://github.com/EdwardPlata/game-watcher/issues"
+
+[project.scripts]
+game-watcher = "main:main"
+game-watcher-web = "web_server:main"
+
+[tool.setuptools.packages.find]
+# Automatically find all packages
+where = ["."]
+include = ["api*", "collectors*", "utils*"]
+exclude = ["tests*", "docs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["api", "collectors", "utils"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/env/*",
+    "*/.env/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
