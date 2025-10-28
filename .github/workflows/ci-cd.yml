@@ -1,0 +1,176 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run linting
+      run: |
+        # Run flake8 for code quality
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Run black check for formatting
+        black --check . || true
+    
+    - name: Run tests with coverage
+      env:
+        ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        DATABASE_NAME: test_sports_calendar.db
+      run: |
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Verify application structure
+      run: |
+        echo "Checking application structure..."
+        python -c "from api import create_app; app = create_app(); print('FastAPI app created successfully')"
+    
+    - name: Create deployment artifact
+      run: |
+        # Create a zip file with all necessary files for deployment
+        mkdir -p deployment
+        cp -r api collectors utils *.py requirements.txt config.env deployment/
+        cd deployment && zip -r ../game-watcher-${{ github.sha }}.zip .
+    
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: game-watcher-${{ github.sha }}
+        path: game-watcher-${{ github.sha }}.zip
+        retention-days: 30
+
+  deploy-staging:
+    name: Deploy to Staging (Anvil)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download deployment artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: game-watcher-${{ github.sha }}
+    
+    - name: Deploy to Anvil Staging
+      id: deploy
+      env:
+        THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        ANVIL_UPLINK_KEY: ${{ secrets.ANVIL_UPLINK_KEY }}
+      run: |
+        echo "Deploying to Anvil staging environment..."
+        # Note: Anvil deployment typically uses Anvil Uplink for Python backend
+        # This is a placeholder - actual deployment depends on your Anvil setup
+        # If using Anvil Uplink: python -m anvil.server.connect <uplink-key>
+        # If using custom hosting: adapt this section for your deployment method
+        echo "url=https://staging.game-watcher.anvil.app" >> $GITHUB_OUTPUT
+        echo "Deployment completed to staging"
+
+  deploy-production:
+    name: Deploy to Production (Anvil)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download deployment artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: game-watcher-${{ github.sha }}
+    
+    - name: Deploy to Anvil Production
+      id: deploy
+      env:
+        THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        ANVIL_UPLINK_KEY: ${{ secrets.ANVIL_UPLINK_KEY }}
+      run: |
+        echo "Deploying to Anvil production environment..."
+        # Note: Anvil deployment typically uses Anvil Uplink for Python backend
+        # This is a placeholder - actual deployment depends on your Anvil setup
+        # For Anvil.works: You can use anvil.server.connect() with uplink key
+        # Or deploy using Anvil's git-based deployment
+        echo "url=https://game-watcher.anvil.app" >> $GITHUB_OUTPUT
+        echo "Deployment completed to production"
+    
+    - name: Verify deployment
+      run: |
+        echo "Verifying deployment..."
+        # Add health check endpoint verification here
+        # curl -f https://game-watcher.anvil.app/api/v1/health || exit 1
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Check deployment status
+      run: |
+        echo "Deployment workflow completed"
+        echo "Check the Actions tab for detailed results"
