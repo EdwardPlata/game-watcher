@@ -20,8 +20,8 @@ Usage:
 """
 
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 import requests
-from datetime import date
 
 
 class GameWatcherClient:
@@ -84,7 +84,7 @@ class GameWatcherClient:
             try:
                 error_data = e.response.json()
                 error_detail = error_data.get('detail', error_detail)
-            except:
+            except (ValueError, AttributeError, KeyError):
                 pass
             raise APIError(f"API request failed: {error_detail}") from e
             
@@ -295,8 +295,6 @@ def get_upcoming_events(
     """
     if client is None:
         client = GameWatcherClient()
-    
-    from datetime import datetime, timedelta
     
     start_date = datetime.now().date()
     end_date = start_date + timedelta(days=days)

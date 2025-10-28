@@ -16,6 +16,23 @@ from collectors.betting import BettingOddsCollector
 logger = get_logger(__name__)
 
 
+def _parse_event_date(event: Dict[str, Any]) -> Optional[date]:
+    """
+    Parse event date from various formats.
+    
+    Args:
+        event: Event dictionary containing 'date' field
+    
+    Returns:
+        Parsed date object or None if parsing fails
+    """
+    try:
+        date_str = event['date'].replace('Z', '+00:00')
+        return datetime.fromisoformat(date_str).date()
+    except (ValueError, KeyError, AttributeError):
+        return None
+
+
 class EventsService:
     """Service for handling event-related operations."""
     
@@ -50,15 +67,14 @@ class EventsService:
         if start_date or end_date:
             filtered_events = []
             for event in events:
-                try:
-                    event_date = datetime.fromisoformat(event['date'].replace('Z', '+00:00')).date()
-                    if start_date and event_date < start_date:
-                        continue
-                    if end_date and event_date > end_date:
-                        continue
-                    filtered_events.append(event)
-                except ValueError:
+                event_date = _parse_event_date(event)
+                if event_date is None:
                     continue
+                if start_date and event_date < start_date:
+                    continue
+                if end_date and event_date > end_date:
+                    continue
+                filtered_events.append(event)
             return filtered_events
         
         return events
@@ -76,12 +92,9 @@ class EventsService:
         
         day_events = []
         for event in events:
-            try:
-                event_date = datetime.fromisoformat(event['date'].replace('Z', '+00:00')).date()
-                if event_date == target_date:
-                    day_events.append(event)
-            except ValueError:
-                continue
+            event_date = _parse_event_date(event)
+            if event_date == target_date:
+                day_events.append(event)
         
         # Sort by time
         day_events.sort(key=lambda x: x.get('date', ''))
@@ -91,14 +104,12 @@ class EventsService:
         """Group events by date."""
         events_by_date = {}
         for event in events:
-            try:
-                event_date = datetime.fromisoformat(event['date'].replace('Z', '+00:00')).date()
+            event_date = _parse_event_date(event)
+            if event_date is not None:
                 date_str = event_date.isoformat()
                 if date_str not in events_by_date:
                     events_by_date[date_str] = []
                 events_by_date[date_str].append(event)
-            except ValueError:
-                continue
         return events_by_date
     
     def normalize_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
