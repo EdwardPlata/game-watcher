@@ -10,10 +10,11 @@ import json
 
 from utils import DatabaseManager, get_logger, WebhookDelivery
 from collectors import COLLECTORS, get_collector
+from collectors.betting import BettingOddsCollector
 from .models import (
     EventResponse, EventsResponse, SportInfo, SportsResponse,
     CalendarDay, CalendarMonth, HealthStatus, CollectionResult,
-    WebhookConfig, WebhookPayload
+    WebhookConfig, WebhookPayload, BettingOddsResponse, BettingOddsDetailResponse
 )
 
 logger = get_logger(__name__)
@@ -647,3 +648,163 @@ async def trigger_webhook_delivery(
     except Exception as e:
         logger.error(f"Error triggering webhook delivery: {e}")
         raise HTTPException(status_code=500, detail="Failed to trigger webhook delivery")
+
+
+@router.post("/betting/collect")
+async def collect_betting_odds(db: DatabaseManager = Depends(get_db)):
+    """Collect betting odds from The Odds API."""
+    try:
+        start_time = datetime.now()
+        
+        # Initialize betting odds collector
+        odds_collector = BettingOddsCollector()
+        
+        # Fetch odds data
+        raw_data = odds_collector.fetch_raw_data()
+        
+        if not raw_data:
+            return {
+                "success": False,
+                "message": "No odds data available. Check ODDS_API_KEY configuration.",
+                "odds_collected": 0,
+                "odds_inserted": 0,
+                "duration_seconds": (datetime.now() - start_time).total_seconds()
+            }
+        
+        # Parse odds
+        parsed_odds = odds_collector.parse_events(raw_data)
+        
+        # Insert into database
+        inserted = db.insert_betting_odds(parsed_odds)
+        
+        duration = (datetime.now() - start_time).total_seconds()
+        
+        return {
+            "success": True,
+            "message": f"Collected betting odds for {len(raw_data)} sports",
+            "odds_collected": len(parsed_odds),
+            "odds_inserted": inserted,
+            "duration_seconds": duration
+        }
+        
+    except Exception as e:
+        logger.error(f"Error collecting betting odds: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to collect betting odds: {str(e)}")
+
+
+@router.get("/betting/odds", response_model=List[BettingOddsResponse])
+async def get_betting_odds(
+    sport: Optional[str] = Query(None, description="Filter by sport"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
+    db: DatabaseManager = Depends(get_db)
+):
+    """Get betting odds for upcoming events."""
+    try:
+        odds_list = db.get_all_betting_odds(sport=sport, limit=limit)
+        
+        # Convert to response model
+        response = []
+        for odds in odds_list:
+            response.append(BettingOddsResponse(
+                id=odds.get('id'),
+                event_id=odds['event_id'],
+                sport=odds['sport'],
+                commence_time=odds['commence_time'],
+                home_team=odds['home_team'],
+                away_team=odds['away_team'],
+                participants=odds['participants'],
+                best_odds=odds['best_odds'],
+                bookmaker_count=odds['bookmaker_count'],
+                scraped_at=odds['scraped_at']
+            ))
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error getting betting odds: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get betting odds")
+
+
+@router.get("/betting/odds/{odds_id}", response_model=BettingOddsDetailResponse)
+async def get_betting_odds_detail(odds_id: int, db: DatabaseManager = Depends(get_db)):
+    """Get detailed betting odds for a specific event including all bookmakers."""
+    try:
+        # Get all odds and find the one with matching ID
+        odds_list = db.get_all_betting_odds(limit=1000)
+        
+        for odds in odds_list:
+            if odds.get('id') == odds_id:
+                return BettingOddsDetailResponse(
+                    id=odds.get('id'),
+                    event_id=odds['event_id'],
+                    sport=odds['sport'],
+                    commence_time=odds['commence_time'],
+                    home_team=odds['home_team'],
+                    away_team=odds['away_team'],
+                    participants=odds['participants'],
+                    odds_data=odds['odds_data'],
+                    best_odds=odds['best_odds'],
+                    bookmaker_count=odds['bookmaker_count'],
+                    scraped_at=odds['scraped_at']
+                )
+        
+        raise HTTPException(status_code=404, detail="Betting odds not found")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting betting odds detail: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get betting odds detail")
+
+
+@router.get("/events/{event_id}/odds")
+async def get_odds_for_event(event_id: int, db: DatabaseManager = Depends(get_db)):
+    """Get betting odds for a specific event."""
+    try:
+        # Get the event first
+        event = db.get_event_by_id(event_id)
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        
+        # Parse participants
+        participants = event.get('participants', [])
+        if isinstance(participants, str):
+            try:
+                participants = json.loads(participants)
+            except (json.JSONDecodeError, TypeError):
+                participants = [participants] if participants else []
+        
+        # Get odds for this event
+        sport = event['sport']
+        odds = db.get_odds_for_event(sport, participants)
+        
+        if not odds:
+            return {
+                "event_id": event_id,
+                "has_odds": False,
+                "message": "No betting odds available for this event"
+            }
+        
+        return {
+            "event_id": event_id,
+            "has_odds": True,
+            "odds": BettingOddsResponse(
+                id=odds.get('id'),
+                event_id=odds['event_id'],
+                sport=odds['sport'],
+                commence_time=odds['commence_time'],
+                home_team=odds['home_team'],
+                away_team=odds['away_team'],
+                participants=odds['participants'],
+                best_odds=odds['best_odds'],
+                bookmaker_count=odds['bookmaker_count'],
+                scraped_at=odds['scraped_at']
+            )
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting odds for event {event_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get odds for event")
+

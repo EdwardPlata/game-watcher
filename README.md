@@ -48,6 +48,7 @@ python3 web_server.py
 - **📱 Responsive Design** - Mobile-friendly interface
 - **🔗 Watch Links** - Direct links to stream/watch events online
 - **🪝 Webhook Integration** - Real-time event notifications to frontend applications
+- **💰 Betting Odds** - Live betting odds from 40+ bookmakers with probability analysis
 
 ## 📖 Documentation
 
@@ -58,6 +59,7 @@ Comprehensive documentation is available in the [`/docs`](./docs/) directory:
 - **[System Architecture](./docs/ARCHITECTURE.md)** - Technical architecture and design
 - **[Implementation Status](./docs/IMPLEMENTATION_COMPLETE.md)** - Current development status
 - **[Webhook Guide](./docs/WEBHOOK_GUIDE.md)** - Webhook configuration and integration
+- **[Betting Odds Guide](./docs/BETTING_ODDS_GUIDE.md)** - Betting odds integration and configuration
 
 ## � Project Structure
 

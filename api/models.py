@@ -105,3 +105,60 @@ class WebhookPayload(BaseModel):
     timestamp: str = Field(..., description="ISO timestamp of webhook")
     events: List[EventResponse] = Field(..., description="List of new events")
     total: int = Field(..., description="Total number of events in payload")
+
+
+class BettingOddsOutcome(BaseModel):
+    """Model for betting odds outcome."""
+    name: str = Field(..., description="Outcome name (team name or 'Draw')")
+    price: float = Field(..., description="Decimal odds")
+    point: Optional[float] = Field(None, description="Point spread or total (if applicable)")
+
+
+class BettingOddsMarket(BaseModel):
+    """Model for betting market odds."""
+    bookmaker: str = Field(..., description="Bookmaker name")
+    market: str = Field(..., description="Market type (h2h, spreads, totals)")
+    outcomes: List[BettingOddsOutcome] = Field(..., description="List of outcomes with odds")
+
+
+class BestOdds(BaseModel):
+    """Model for best available odds."""
+    price: float = Field(0, description="Best decimal odds")
+    bookmaker: Optional[str] = Field(None, description="Bookmaker offering best odds")
+    probability: float = Field(0, description="Implied probability percentage")
+
+
+class BettingOddsResponse(BaseModel):
+    """Model for betting odds response."""
+    id: Optional[int] = None
+    event_id: str
+    sport: str
+    commence_time: str
+    home_team: str
+    away_team: str
+    participants: List[str]
+    best_odds: dict = Field(..., description="Best available odds for each outcome")
+    bookmaker_count: int = Field(..., description="Number of bookmakers offering odds")
+    scraped_at: str
+    
+    class Config:
+        from_attributes = True
+
+
+class BettingOddsDetailResponse(BaseModel):
+    """Model for detailed betting odds response."""
+    id: Optional[int] = None
+    event_id: str
+    sport: str
+    commence_time: str
+    home_team: str
+    away_team: str
+    participants: List[str]
+    odds_data: List[dict] = Field(..., description="Complete odds data from all bookmakers")
+    best_odds: dict = Field(..., description="Best available odds for each outcome")
+    bookmaker_count: int = Field(..., description="Number of bookmakers offering odds")
+    scraped_at: str
+    
+    class Config:
+        from_attributes = True
+

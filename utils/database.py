@@ -68,6 +68,29 @@ class DatabaseManager(LoggerMixin):
                 )
             ''')
             
+            # Create betting_odds table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS betting_odds (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    sport TEXT NOT NULL,
+                    commence_time TEXT NOT NULL,
+                    home_team TEXT NOT NULL,
+                    away_team TEXT NOT NULL,
+                    participants TEXT NOT NULL,  -- JSON array
+                    odds_data TEXT NOT NULL,  -- JSON array of all odds
+                    best_odds TEXT NOT NULL,  -- JSON object with best odds
+                    bookmaker_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(event_id, sport, commence_time)
+                )
+            ''')
+            
+            # Create index for faster odds queries
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_odds_sport_time ON betting_odds(sport, commence_time)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_odds_scraped ON betting_odds(scraped_at)')
+            
             conn.commit()
             self.logger.info("Database initialized successfully")
     
@@ -292,3 +315,118 @@ class DatabaseManager(LoggerMixin):
                 events.append(dict(row))
             
             return events
+    
+    def insert_betting_odds(self, odds_data: List[Dict]) -> int:
+        """Insert betting odds into database, updating existing entries."""
+        if not odds_data:
+            return 0
+        
+        inserted_count = 0
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            
+            for odds in odds_data:
+                try:
+                    # Insert or replace odds entry
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO betting_odds 
+                        (event_id, sport, commence_time, home_team, away_team, 
+                         participants, odds_data, best_odds, bookmaker_count, scraped_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ''', (
+                        odds.get('event_id', ''),
+                        odds.get('sport', ''),
+                        odds.get('commence_time', ''),
+                        odds.get('home_team', ''),
+                        odds.get('away_team', ''),
+                        json.dumps(odds.get('participants', [])),
+                        json.dumps(odds.get('odds_data', [])),
+                        json.dumps(odds.get('best_odds', {})),
+                        odds.get('bookmaker_count', 0)
+                    ))
+                    inserted_count += 1
+                except Exception as e:
+                    self.logger.error(f"Error inserting betting odds: {e}")
+                    continue
+            
+            conn.commit()
+        
+        self.logger.info(f"Inserted/Updated {inserted_count} betting odds entries")
+        return inserted_count
+    
+    def get_odds_for_event(self, sport: str, participants: List[str]) -> Optional[Dict]:
+        """Get betting odds for a specific event by matching participants."""
+        with sqlite3.connect(self.db_name) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get recent odds for this sport
+            cursor.execute('''
+                SELECT id, event_id, sport, commence_time, home_team, away_team,
+                       participants, odds_data, best_odds, bookmaker_count, scraped_at
+                FROM betting_odds
+                WHERE sport = ?
+                AND datetime(commence_time) >= datetime('now')
+                ORDER BY scraped_at DESC
+                LIMIT 100
+            ''', (sport,))
+            
+            odds_entries = []
+            for row in cursor.fetchall():
+                odds_entries.append(dict(row))
+            
+            # Match by participants
+            for odds_entry in odds_entries:
+                odds_participants = json.loads(odds_entry['participants'])
+                # Check if any search term appears in any participant name (bidirectional)
+                for search_term in participants:
+                    search_term_lower = search_term.lower()
+                    for odds_participant in odds_participants:
+                        odds_participant_lower = odds_participant.lower()
+                        # Match if search term is in participant name or vice versa
+                        if search_term_lower in odds_participant_lower or odds_participant_lower in search_term_lower:
+                            # Parse JSON fields
+                            odds_entry['participants'] = odds_participants
+                            odds_entry['odds_data'] = json.loads(odds_entry['odds_data'])
+                            odds_entry['best_odds'] = json.loads(odds_entry['best_odds'])
+                            return odds_entry
+            
+            return None
+    
+    def get_all_betting_odds(self, sport: Optional[str] = None, limit: int = 100) -> List[Dict]:
+        """Get all betting odds, optionally filtered by sport."""
+        with sqlite3.connect(self.db_name) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            if sport:
+                cursor.execute('''
+                    SELECT id, event_id, sport, commence_time, home_team, away_team,
+                           participants, odds_data, best_odds, bookmaker_count, scraped_at
+                    FROM betting_odds
+                    WHERE sport = ?
+                    AND datetime(commence_time) >= datetime('now')
+                    ORDER BY commence_time ASC
+                    LIMIT ?
+                ''', (sport, limit))
+            else:
+                cursor.execute('''
+                    SELECT id, event_id, sport, commence_time, home_team, away_team,
+                           participants, odds_data, best_odds, bookmaker_count, scraped_at
+                    FROM betting_odds
+                    WHERE datetime(commence_time) >= datetime('now')
+                    ORDER BY commence_time ASC
+                    LIMIT ?
+                ''', (limit,))
+            
+            odds_list = []
+            for row in cursor.fetchall():
+                odds_entry = dict(row)
+                # Parse JSON fields
+                odds_entry['participants'] = json.loads(odds_entry['participants'])
+                odds_entry['odds_data'] = json.loads(odds_entry['odds_data'])
+                odds_entry['best_odds'] = json.loads(odds_entry['best_odds'])
+                odds_list.append(odds_entry)
+            
+            return odds_list
+
