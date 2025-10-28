@@ -1,0 +1,26 @@
+{
+  "name": "Game Watcher Development",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.flake8",
+        "ms-python.black-formatter",
+        "ms-toolsai.jupyter",
+        "ms-vscode.vscode-json",
+        "charliermarsh.ruff"
+      ]
+    }
+  },
+  "postCreateCommand": ".devcontainer/setup.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Game Watcher Web Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "vscode"
+}

@@ -1,0 +1,46 @@
+# Anvil Requirements for Game Watcher
+# These are the dependencies needed for the Anvil version
+
+# Core HTTP and web scraping libraries
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Date and time handling
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Data validation and parsing
+pydantic>=2.0.0
+jsonschema>=4.19.0
+
+# Configuration management
+python-dotenv>=1.0.0
+
+# API rate limiting
+ratelimit>=2.2.1
+
+# HTTP client enhancements (for async requests if needed)
+httpx>=0.24.0
+
+# Additional API libraries for sports data
+# Note: selenium might not work in Anvil's environment
+# selenium>=4.11.0  # Commented out - may not work in Anvil
+
+# Optional Google Calendar integration (if using Uplink)
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.1.1
+google-auth-oauthlib>=1.0.0
+
+# Note: The following are NOT needed for Anvil:
+# - fastapi
+# - uvicorn
+# - jinja2
+# - python-multipart
+# - fastapi-cors
+# - APScheduler (Anvil has its own background tasks)
+
+# Development dependencies (for testing outside Anvil)
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# pytest-mock>=3.11.0
